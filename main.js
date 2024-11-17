@@ -101,7 +101,7 @@ function update() {
 }
 
 function createObstacle(scene, x, type) {
-  let obstacle = scene.physics.add.sprite(x, scene.scale.height - 100, type);
+  let obstacle = scene.physics.add.sprite(x, scene.scale.height - 80, type);
   if (type === 'rock') {
     obstacle.setScale(1.2);
     obstacle.body.setSize(obstacle.width / 2, obstacle.height / 2);
