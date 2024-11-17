@@ -101,18 +101,15 @@ function update() {
 }
 
 function createObstacle(scene, x, type) {
-  // Ajustar posición vertical de los obstáculos para que estén más abajo
-  const yPosition = scene.scale.height - 80; 
-
-  let obstacle = scene.physics.add.sprite(x, yPosition, type);
+  let obstacle = scene.physics.add.sprite(x, scene.scale.height - 100, type);
   if (type === 'rock') {
     obstacle.setScale(1.2);
     obstacle.body.setSize(obstacle.width / 2, obstacle.height / 2);
     obstacle.body.setOffset(obstacle.width / 4, obstacle.height / 4);
   } else if (type === 'jaguar') {
     obstacle.setScale(0.5);
-    obstacle.body.setSize(obstacle.width * 0.5, obstacle.height * 0.5); // Hitbox reducido al 50%
-    obstacle.body.setOffset(obstacle.width * 0.25, obstacle.height * 0.25); // Centramos el hitbox reducido
+    obstacle.body.setSize(obstacle.width * 0.6, obstacle.height * 0.6);
+    obstacle.body.setOffset(obstacle.width * 0.2, obstacle.height * 0.2);
   } else if (type === 'snake') {
     obstacle.setScale(0.8);
     obstacle.body.setSize(obstacle.width / 2, obstacle.height / 2);
@@ -132,4 +129,4 @@ function endGame() {
   player.setTint(0xff0000); // Cambia el color del jugador para indicar el final
   alert('¡Juego terminado! Puntuación final: ' + score);
   location.reload(); // Reinicia el juego (opcional)
-}
+}                   
