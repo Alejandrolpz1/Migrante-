@@ -30,7 +30,7 @@ let guard;
 const backgroundSpeed = 5;
 const obstacleSpeed = 5;
 const obstacleDistance = 600;
-const guardBaseSpeed = 2.8; // Duplicado de 0.9 a 1.8
+const guardBaseSpeed = 4.8; 
 let guardLastX = 0;
 
 function preload() {
@@ -42,6 +42,7 @@ function preload() {
   this.load.image('snake', 'serpiente.png');
   this.load.image('fence', 'valla.png');
   this.load.image('guard', 'guardia.png');
+  this.load.image('soldier', 'soldado.png'); // Cargamos la imagen del nuevo obstáculo
 }
 
 function create() {
@@ -65,27 +66,53 @@ function update() {
     return;
   }
 
-  if (score >= 30 && currentLevel === 1) {
+  if (score >= 70 && currentLevel === 1) {
     currentLevel = 2;
-    background.setTexture('city');
-    obstacles.forEach(obstacle => obstacle.destroy());
-    obstacles = [];
 
-    createObstacle(this, this.scale.width / 2, 'fence');
-    createObstacle(this, this.scale.width / 2 + obstacleDistance, 'fence');
-    createObstacle(this, this.scale.width / 2 + obstacleDistance * 2, 'fence');
+    // Añadimos un rectángulo negro semitransparente para la transición
+    let fade = this.add.rectangle(
+        0,
+        0,
+        this.scale.width,
+        this.scale.height,
+        0x000000,
+        1
+    );
+    fade.setOrigin(0, 0);
+    fade.setAlpha(0);
 
-    guard = this.physics.add.sprite(-50, this.scale.height - 100, 'guard');
-    guard.setScale(0.8);
-    guard.body.allowGravity = false;
-    guardLastX = guard.x;
+    this.tweens.add({
+        targets: fade,
+        alpha: 1, // Oscurece completamente
+        duration: 1000, // Duración de la transición en milisegundos
+        onComplete: () => {
+            // Cambia los elementos del nivel
+            background.setTexture('city');
+            obstacles.forEach(obstacle => obstacle.destroy());
+            obstacles = [];
 
-    const fenceY = this.scale.height - 100;
-    guard.y = fenceY;
+            createObstacle(this, this.scale.width / 2 + obstacleDistance * 1.5, 'fence');
+            createObstacle(this, this.scale.width / 2 + obstacleDistance * 3, 'fence');
+            createObstacle(this, this.scale.width / 2 + obstacleDistance * 4, 'soldier');
 
-    this.physics.add.overlap(player, guard, endGame, null, this);
+            guard = this.physics.add.sprite(-50, this.scale.height - 100, 'guard');
+            guard.setScale(0.8);
+            guard.body.allowGravity = false;
+            guardLastX = guard.x;
 
-    alert('¡Nivel 2! Un guardia te está persiguiendo.');
+            const fenceY = this.scale.height - 100;
+            guard.y = fenceY;
+
+            this.physics.add.overlap(player, guard, endGame, null, this);
+
+            // Vuelve a mostrar el juego después de la transición
+            this.tweens.add({
+                targets: fade,
+                alpha: 0, // Desaparece el rectángulo negro
+                duration: 1000
+            });
+        }
+    });
   }
 
   player.x = this.scale.width / 4;
@@ -107,7 +134,7 @@ function update() {
           ? obstacles[obstacles.length - 1].x + obstacleDistance 
           : this.scale.width + obstacleDistance;
 
-        const obstacleType = currentLevel === 2 ? 'fence' : getRandomObstacleType();
+        const obstacleType = currentLevel === 2 ? getRandomObstacleTypeLevel2() : getRandomObstacleType();
         createObstacle(this, nextX, obstacleType);
       }
     });
@@ -151,6 +178,11 @@ function createObstacle(scene, x, type) {
       obstacle.body.setSize(obstacle.width * 0.6, obstacle.height * 0.4);
       obstacle.body.setOffset(obstacle.width * 0.2, obstacle.height * 0.3);
       break;
+    case 'soldier':
+      obstacle.setScale(1.1);
+      obstacle.body.setSize(obstacle.width * 0.5, obstacle.height * 0.5);
+      obstacle.body.setOffset(obstacle.width * 0.25, obstacle.height * 0.25);
+      break;
   }
   
   obstacle.body.setImmovable(true);
@@ -162,6 +194,11 @@ function createObstacle(scene, x, type) {
 
 function getRandomObstacleType() {
   const types = ['rock', 'jaguar', 'snake'];
+  return types[Math.floor(Math.random() * types.length)];
+}
+
+function getRandomObstacleTypeLevel2() {
+  const types = ['fence', 'soldier'];
   return types[Math.floor(Math.random() * types.length)];
 }
 
