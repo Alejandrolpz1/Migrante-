@@ -37,12 +37,16 @@ function preload() {
   this.load.image('player', 'player.png');
   this.load.image('background', 'selva.png');
   this.load.image('city', 'ciudad.png');
+  this.load.image('desert', 'desierto.png');
   this.load.image('rock', 'roca.png');
   this.load.image('jaguar', 'jaguar.png');
   this.load.image('snake', 'serpiente.png');
   this.load.image('fence', 'valla.png');
   this.load.image('guard', 'guardia.png');
-  this.load.image('soldier', 'soldado.png'); // Cargamos la imagen del nuevo obstáculo
+  this.load.image('soldier', 'soldado.png');
+  this.load.image('cactus', 'cactus.png');
+  this.load.image('scorpion', 'escorpion.png');
+  this.load.image('tren', 'tren.png');
 }
 
 function create() {
@@ -66,53 +70,21 @@ function update() {
     return;
   }
 
+  // Transición al nivel 2
   if (score >= 70 && currentLevel === 1) {
-    currentLevel = 2;
+    changeLevel(this, 'city', ['fence', 'fence', 'soldier'], 2);
+  }
 
-    // Añadimos un rectángulo negro semitransparente para la transición
-    let fade = this.add.rectangle(
-        0,
-        0,
-        this.scale.width,
-        this.scale.height,
-        0x000000,
-        1
-    );
-    fade.setOrigin(0, 0);
-    fade.setAlpha(0);
+  // Transición al nivel 3
+  if (score >= 100 && currentLevel === 2) {
+    changeLevel(this, 'desert', [], 3);
+  }
 
-    this.tweens.add({
-        targets: fade,
-        alpha: 1, // Oscurece completamente
-        duration: 1000, // Duración de la transición en milisegundos
-        onComplete: () => {
-            // Cambia los elementos del nivel
-            background.setTexture('city');
-            obstacles.forEach(obstacle => obstacle.destroy());
-            obstacles = [];
-
-            createObstacle(this, this.scale.width / 2 + obstacleDistance * 1.5, 'fence');
-            createObstacle(this, this.scale.width / 2 + obstacleDistance * 3, 'fence');
-            createObstacle(this, this.scale.width / 2 + obstacleDistance * 4, 'soldier');
-
-            guard = this.physics.add.sprite(-50, this.scale.height - 100, 'guard');
-            guard.setScale(0.8);
-            guard.body.allowGravity = false;
-            guardLastX = guard.x;
-
-            const fenceY = this.scale.height - 100;
-            guard.y = fenceY;
-
-            this.physics.add.overlap(player, guard, endGame, null, this);
-
-            // Vuelve a mostrar el juego después de la transición
-            this.tweens.add({
-                targets: fade,
-                alpha: 0, // Desaparece el rectángulo negro
-                duration: 1000
-            });
-        }
-    });
+  // Solo mostrar jugador en niveles 1 y 2
+  if (currentLevel === 3) {
+    // Mover el tren hacia la derecha
+    player.x += 5;
+    return;
   }
 
   player.x = this.scale.width / 4;
@@ -134,18 +106,22 @@ function update() {
           ? obstacles[obstacles.length - 1].x + obstacleDistance 
           : this.scale.width + obstacleDistance;
 
-        const obstacleType = currentLevel === 2 ? getRandomObstacleTypeLevel2() : getRandomObstacleType();
-        createObstacle(this, nextX, obstacleType);
+        const obstacleType = currentLevel === 2 
+          ? getRandomObstacleTypeLevel2() 
+          : currentLevel === 3 
+          ? [] 
+          : getRandomObstacleType();
+        
+        if (obstacleType.length > 0) {
+          createObstacle(this, nextX, obstacleType);
+        }
       }
     });
 
-    if (currentLevel === 2 && guard) {
-      guard.x -= obstacleSpeed;
-      guard.x += guardBaseSpeed;
-    }
-  } else {
-    if (currentLevel === 2 && guard) {
-      guard.x += guardBaseSpeed;
+    // Eliminar persecución del guardia
+    if (currentLevel >= 2 && guard) {
+      guard.destroy();
+      guard = null;
     }
   }
 
@@ -155,6 +131,8 @@ function update() {
 }
 
 function createObstacle(scene, x, type) {
+  if (currentLevel === 3) return;
+
   let obstacle = scene.physics.add.sprite(x, scene.scale.height - 100, type);
   
   switch(type) {
@@ -200,6 +178,51 @@ function getRandomObstacleType() {
 function getRandomObstacleTypeLevel2() {
   const types = ['fence', 'soldier'];
   return types[Math.floor(Math.random() * types.length)];
+}
+
+function changeLevel(scene, newBackground, newObstacles, newLevel) {
+  currentLevel = newLevel;
+
+  let fade = scene.add.rectangle(0, 0, scene.scale.width, scene.scale.height, 0x000000, 1);
+  fade.setOrigin(0, 0);
+  fade.setAlpha(0);
+
+  scene.tweens.add({
+    targets: fade,
+    alpha: 1,
+    duration: 1000,
+    onComplete: () => {
+      background.setTexture(newBackground);
+      obstacles.forEach(obstacle => obstacle.destroy());
+      obstacles = [];
+      
+      // En nivel 3, usar sprite de tren estático
+      if (newLevel === 3) {
+        player.destroy();
+        player = scene.add.sprite(scene.scale.width / 4, scene.scale.height - 100, 'tren');
+        player.setScale(0.5);
+        player.setOrigin(0.5, 1);
+      }
+
+      newObstacles.forEach((type, index) => {
+        createObstacle(scene, scene.scale.width / 2 + obstacleDistance * (index + 1), type);
+      });
+
+      if (newLevel === 2) {
+        guard = scene.physics.add.sprite(-50, scene.scale.height - 100, 'guard');
+        guard.setScale(0.8);
+        guard.body.allowGravity = false;
+        guardLastX = guard.x;
+        scene.physics.add.overlap(player, guard, endGame, null, scene);
+      }
+
+      scene.tweens.add({
+        targets: fade,
+        alpha: 0,
+        duration: 1000
+      });
+    }
+  });
 }
 
 function endGame() {
