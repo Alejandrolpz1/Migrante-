@@ -19,6 +19,7 @@ const config = {
 
 const game = new Phaser.Game(config);
 let player;
+let train; // Nueva variable para el tren
 let cursors;
 let background;
 let obstacles = [];
@@ -32,6 +33,7 @@ const obstacleSpeed = 5;
 const obstacleDistance = 600;
 const guardBaseSpeed = 4.8; 
 let guardLastX = 0;
+let trainSpeed = 2;
 
 function preload() {
   this.load.image('player', 'player.png');
@@ -53,7 +55,7 @@ function create() {
   background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background');
   background.setOrigin(0, 0);
 
-  player = this.physics.add.sprite(this.scale.width / 4, this.scale.height - 100, 'player');
+  player = this.physics.add.sprite(120, this.scale.height - 100, 'player');
   player.setCollideWorldBounds(true);
   player.setBounce(0.2);
 
@@ -80,53 +82,67 @@ function update() {
     changeLevel(this, 'desert', [], 3);
   }
 
-  // Solo mostrar jugador en niveles 1 y 2
+  // Manejo específico para el nivel 3
   if (currentLevel === 3) {
-    // Mover el tren hacia la derecha
-    player.x += 5;
+    // Mover solo el tren
+    if (train) {
+      train.x += trainSpeed;
+      // Si el tren sale de la pantalla, reiniciar su posición
+      if (train.x > this.scale.width) {
+        train.x = -100;
+      }
+    }
+    // El jugador mantiene su posición en x=120
+    if (player) {
+      player.x = 120;
+    }
     return;
   }
 
-  player.x = this.scale.width / 4;
+  // Control del jugador en niveles 1 y 2
+  if (currentLevel < 3) {
+    player.x = 120;
 
-  if (cursors.right.isDown) {
-    background.tilePositionX += backgroundSpeed;
+    if (cursors.right.isDown) {
+      background.tilePositionX += backgroundSpeed;
 
-    obstacles.forEach((obstacle, index) => {
-      obstacle.x -= obstacleSpeed;
+      obstacles.forEach((obstacle, index) => {
+        obstacle.x -= obstacleSpeed;
 
-      if (obstacle.x + obstacle.width < 0) {
-        score += 10;
-        scoreText.setText('Puntos: ' + score);
+        if (obstacle.x + obstacle.width < 0) {
+          score += 10;
+          scoreText.setText('Puntos: ' + score);
 
-        obstacle.destroy();
-        obstacles.splice(index, 1);
+          obstacle.destroy();
+          obstacles.splice(index, 1);
 
-        const nextX = obstacles.length > 0 
-          ? obstacles[obstacles.length - 1].x + obstacleDistance 
-          : this.scale.width + obstacleDistance;
+          const nextX = obstacles.length > 0 
+            ? obstacles[obstacles.length - 1].x + obstacleDistance 
+            : this.scale.width + obstacleDistance;
 
-        const obstacleType = currentLevel === 2 
-          ? getRandomObstacleTypeLevel2() 
-          : currentLevel === 3 
-          ? [] 
-          : getRandomObstacleType();
-        
-        if (obstacleType.length > 0) {
-          createObstacle(this, nextX, obstacleType);
+          const obstacleType = currentLevel === 2 
+            ? getRandomObstacleTypeLevel2() 
+            : getRandomObstacleType();
+          
+          if (obstacleType.length > 0) {
+            createObstacle(this, nextX, obstacleType);
+          }
         }
+      });
+
+      if (currentLevel === 2 && guard) {
+        guard.x -= obstacleSpeed;
+        guard.x += guardBaseSpeed;
       }
-    });
-
-    // Eliminar persecución del guardia
-    if (currentLevel >= 2 && guard) {
-      guard.destroy();
-      guard = null;
+    } else {
+      if (currentLevel === 2 && guard) {
+        guard.x += guardBaseSpeed;
+      }
     }
-  }
 
-  if (cursors.space.isDown && player.body.blocked.down) {
-    player.setVelocityY(-400);
+    if (cursors.space.isDown && player.body.blocked.down) {
+      player.setVelocityY(-400);
+    }
   }
 }
 
@@ -143,8 +159,8 @@ function createObstacle(scene, x, type) {
       break;
     case 'jaguar':
       obstacle.setScale(0.5);
-      obstacle.body.setSize(obstacle.width * 0.6, obstacle.height * 0.6);
-      obstacle.body.setOffset(obstacle.width * 0.2, obstacle.height * 0.2);
+      obstacle.body.setSize(obstacle.width * 0.42, obstacle.height * 0.42);
+      obstacle.body.setOffset(obstacle.width * 0.29, obstacle.height * 0.29);
       break;
     case 'snake':
       obstacle.setScale(0.8);
@@ -196,12 +212,17 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
       obstacles.forEach(obstacle => obstacle.destroy());
       obstacles = [];
       
-      // En nivel 3, usar sprite de tren estático
+      // En nivel 3, mantener el jugador y crear el tren
       if (newLevel === 3) {
-        player.destroy();
-        player = scene.add.sprite(scene.scale.width / 4, scene.scale.height - 100, 'tren');
-        player.setScale(0.5);
-        player.setOrigin(0.5, 1);
+        // El jugador se mantiene pero se mueve 10 píxeles más abajo
+        player.y = scene.scale.height - 50;
+        
+        // Crear el tren como un objeto separado
+        train = scene.physics.add.sprite(120, scene.scale.height - 120, 'tren');
+        train.setScale(0.5);
+        train.setOrigin(0.5, 1);
+        train.body.allowGravity = false;
+        train.setCollideWorldBounds(false);
       }
 
       newObstacles.forEach((type, index) => {
