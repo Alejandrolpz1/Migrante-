@@ -38,6 +38,9 @@ let levelTransitionTimer = null;
 let intersectionPoints = [];
 let intersectionTimers = [];
 let playerHidden = false;
+let patrolPoint;
+let pointTimer;
+
 
 function preload() {
   this.load.image('player', 'player.png');
@@ -98,14 +101,17 @@ function update() {
     return;
   }
 
+  // Nivel 1 a Nivel 2
   if (score >= 70 && currentLevel === 1) {
     changeLevel(this, 'city', ['fence', 'fence', 'soldier'], 2);
   }
 
+  // Nivel 2 a Nivel 3
   if (score >= 100 && currentLevel === 2) {
     changeLevel(this, 'desert', [], 3);
   }
 
+  // Lógica del Nivel 3
   if (currentLevel === 3) {
     if (train) {
       train.x += trainSpeed;
@@ -117,6 +123,7 @@ function update() {
       const cellHeight = this.scale.height / 10;
       const intersections = [74, 76, 78];
 
+      // Configuración de puntos de intersección
       if (!this.intersectionTimer) {
         this.intersectionTimer = this.time.addEvent({
           delay: 4000,
@@ -140,16 +147,17 @@ function update() {
       intersections.forEach((cell, index) => {
         const row = Math.floor((cell - 1) / 10);
         const col = (cell - 1) % 10;
-        
+
         const intersectionHitbox = new Phaser.Geom.Rectangle(
-          col * cellWidth, 
-          row * cellHeight, 
-          cellWidth, 
+          col * cellWidth,
+          row * cellHeight,
+          cellWidth,
           cellHeight
         );
 
+        // Detección de colisiones en puntos de intersección
         if (Phaser.Geom.Intersects.RectangleToRectangle(
-          new Phaser.Geom.Rectangle(player.x, player.y, player.width, player.height), 
+          new Phaser.Geom.Rectangle(player.x, player.y, player.width, player.height),
           intersectionHitbox
         )) {
           if (intersectionPoints[index].fillColor === 0xff0000 && cursors.space.isDown) {
@@ -159,45 +167,68 @@ function update() {
           }
 
           if (intersectionPoints[index].fillColor === 0x00ff00 && cursors.space.isDown) {
-            changeLevel(this, 'noche', [], 4);
-            alert('¡Has avanzado al nivel 4!');
+            // Detener el temporizador antes de cambiar de nivel
+            if (this.intersectionTimer) {
+              this.intersectionTimer.remove();
+              this.intersectionTimer = null;
+            }
+            
+            this.time.delayedCall(100, () => {
+              changeLevel(this, 'noche', [], 4);
+            });
             return;
           }
         }
       });
-
-      if (cursors.left.isDown) {
-        player.x -= 5;
-      }
-      if (cursors.right.isDown) {
-        player.x += 5;
-      }
-      if (cursors.space.isDown) {
-        player.y -= 10;
-      }
-      if (cursors.down.isDown) {
-        player.y += 5;
-      }
-
-      player.x = Phaser.Math.Clamp(player.x, 0, this.scale.width);
-      player.y = Phaser.Math.Clamp(player.y, 0, this.scale.height);
     }
+
+    // Movimiento del jugador en nivel 3
+    if (cursors.left.isDown) {
+      player.x -= 2.5;
+    }
+    if (cursors.right.isDown) {
+      player.x += 2.5;
+    }
+    if (cursors.space.isDown) {
+      player.y -= 10;
+    }
+    if (cursors.down.isDown) {
+      player.y += 2.5;
+    }
+
+    player.x = Phaser.Math.Clamp(player.x, 0, this.scale.width);
+    player.y = Phaser.Math.Clamp(player.y, 0, this.scale.height);
     return;
   }
 
+  // Lógica del Nivel 4
   if (currentLevel === 4) {
+    // Verificar si el jugador está fuera de los arbustos y el semáforo está en rojo
+    const isInBush = bushes.some(bush => 
+      Phaser.Geom.Intersects.RectangleToRectangle(
+        new Phaser.Geom.Rectangle(player.x, player.y, player.width, player.height),
+        bush.getBounds()
+      )
+    );
+
+    if (!isInBush && patrolPoint && patrolPoint.fillColor === 0xff0000) {
+      endGame.call(this);
+      return;
+    }
+
+    // Movimiento del jugador si no está oculto en nivel 4
     if (!playerHidden) {
       if (cursors.left.isDown) {
-        player.x -= 5;
+        player.x -= 2.5;
       }
       if (cursors.right.isDown) {
-        player.x += 5;
+        player.x += 2.5;
       }
       if (cursors.space.isDown) {
         player.y -= 10;
       }
       if (cursors.down.isDown) {
-        player.y += 5;
+        player.y += 2.5;
       }
     }
 
@@ -206,10 +237,13 @@ function update() {
     return;
   }
 
+  // Lógica para niveles 1 y 2
   if (currentLevel < 3) {
+    // Mantener al jugador en x=120
     player.x = 120;
 
     if (cursors.right.isDown) {
+      // Mover el fondo y los obstáculos
       background.tilePositionX += backgroundSpeed;
 
       obstacles.forEach((obstacle, index) => {
@@ -246,6 +280,7 @@ function update() {
       }
     }
 
+    // Solo permitir salto
     if (cursors.space.isDown && player.body.blocked.down) {
       player.setVelocityY(-400);
     }
@@ -253,6 +288,17 @@ function update() {
 }
 
 function changeLevel(scene, newBackground, newObstacles, newLevel) {
+  // Limpiar temporizadores existentes
+  if (scene.intersectionTimer) {
+    scene.intersectionTimer.remove();
+    scene.intersectionTimer = null;
+  }
+  
+  if (pointTimer) {
+    pointTimer.remove();
+    pointTimer = null;
+  }
+
   currentLevel = newLevel;
 
   let fade = scene.add.rectangle(0, 0, scene.scale.width, scene.scale.height, 0x000000, 1);
@@ -271,6 +317,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
       if (newLevel === 3) {
         player.y = scene.scale.height - 50;
         
+        if (train) train.destroy();
         train = scene.physics.add.sprite(120, scene.scale.height - 120, 'tren');
         train.setScale(0.5);
         train.setOrigin(0.5, 1);
@@ -285,13 +332,23 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
           train.destroy();
           train = null;
         }
+        
+        // Limpiar puntos de intersección si existen
+        if (intersectionPoints.length > 0) {
+          intersectionPoints.forEach(point => point.destroy());
+          intersectionPoints = [];
+        }
+        
         player.y = scene.scale.height - 50;
         player.x = 120;
         
-        createBushes(scene);
+        scene.time.delayedCall(100, () => {
+          createBushes(scene);
+        });
       }
 
       if (newLevel === 2) {
+        if (guard) guard.destroy();
         guard = scene.physics.add.sprite(-50, scene.scale.height - 100, 'guard');
         guard.setScale(0.8);
         guard.body.allowGravity = false;
@@ -306,15 +363,48 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
       scene.tweens.add({
         targets: fade,
         alpha: 0,
-        duration: 1000
+        duration: 1000,
+        onComplete: () => {
+          if (newLevel === 4) {
+            alert('¡Has avanzado al nivel 4! Tienes 10 segundos de tiempo seguro.');
+          }
+        }
       });
     }
   });
 }
 
+
 function createBushes(scene) {
   bushes.forEach(bush => bush.destroy());
   bushes = [];
+
+  // Crear el punto intermitente en la parte superior con color verde inicial
+  patrolPoint = scene.add.circle(scene.scale.width - 100, 550, 30, 0x00ff00);
+  
+  // Texto informativo inicial
+  let infoText = scene.add.text(16, 60, 'Tiempo seguro: 10s', {
+    fontSize: '24px',
+    fill: '#fff'
+  });
+
+  // Contador de tiempo seguro
+  let safeTimeRemaining = 10;
+  let safeTimer = scene.time.addEvent({
+    delay: 1000,
+    callback: () => {
+      safeTimeRemaining--;
+      infoText.setText(`Tiempo seguro: ${safeTimeRemaining}s`);
+      
+      if (safeTimeRemaining <= 0) {
+        infoText.destroy();
+        
+        // Iniciar el ciclo normal después del tiempo seguro
+        startTrafficLightCycle(scene);
+      }
+    },
+    repeat: 9
+  });
 
   const bushPositions = [
     { x: 300, y: scene.scale.height - 80 },
@@ -332,8 +422,8 @@ function createBushes(scene) {
     scene.physics.add.overlap(player, bush, handleBushOverlap, null, scene);
   });
 
-  // Añadir patrulla estática al final
-  let patrol = scene.physics.add.sprite(scene.scale.width - 10, scene.scale.height - 90, 'guard');
+  // Patrulla
+  let patrol = scene.physics.add.sprite(scene.scale.width - 100, scene.scale.height - 90, 'guard');
   patrol.setScale(0.8);
   patrol.body.allowGravity = false;
   patrol.setFlipX(true);
@@ -344,6 +434,39 @@ function createBushes(scene) {
     }
   }, null, scene);
 }
+
+function startTrafficLightCycle(scene) {
+  // Asegurarse de que no haya temporizadores previos
+  if (pointTimer) {
+    pointTimer.remove();
+  }
+
+  let isRed = false;
+  pointTimer = scene.time.addEvent({
+    delay: 5000, // 5 segundos para cada color
+    callback: () => {
+      isRed = !isRed;
+      patrolPoint.setFillStyle(isRed ? 0xff0000 : 0x00ff00);
+    },
+    loop: true
+  });
+}
+
+function checkGameOverLevel4(scene) {
+  const playerOverlapsBush = bushes.some(bush => {
+    return Phaser.Geom.Intersects.RectangleToRectangle(
+      player.getBounds(),
+      bush.getBounds()
+    );
+  });
+
+  // Solo verificar game over si ya pasó el período inicial de seguridad
+  if (patrolPoint.fillColor === 0xff0000 && !playerOverlapsBush) {
+    endGame.call(scene);
+  }
+}
+
+
 
 function handleBushOverlap(player, bush) {
   if (cursors.shift.isDown) {
@@ -403,12 +526,20 @@ function getRandomObstacleType() {
 function getRandomObstacleTypeLevel2() {
   const types = ['fence', 'soldier'];
   return types[Math.floor(Math.random() * types.length)];
+
+
 }
 
 function endGame() {
   isGameOver = true;
   this.physics.pause();
   player.setTint(0xff0000);
+  
+  // Limpiar el temporizador del punto
+  if (pointTimer) {
+    pointTimer.destroy();
+  }
+  
   alert('¡Juego terminado! Puntuación final: ' + score);
   location.reload();
 }
