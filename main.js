@@ -319,9 +319,7 @@ function createBushes(scene) {
   const bushPositions = [
     { x: 300, y: scene.scale.height - 80 },
     { x: 600, y: scene.scale.height - 80 },
-    { x: 900, y: scene.scale.height - 80 },
-    { x: 1200, y: scene.scale.height - 80 },
-    { x: 1500, y: scene.scale.height - 80 }
+    { x: 900, y: scene.scale.height - 80 }
   ];
 
   bushPositions.forEach(pos => {
@@ -333,6 +331,18 @@ function createBushes(scene) {
 
     scene.physics.add.overlap(player, bush, handleBushOverlap, null, scene);
   });
+
+  // Añadir patrulla estática al final
+  let patrol = scene.physics.add.sprite(scene.scale.width - 10, scene.scale.height - 90, 'guard');
+  patrol.setScale(0.8);
+  patrol.body.allowGravity = false;
+  patrol.setFlipX(true);
+
+  scene.physics.add.overlap(player, patrol, (player, patrol) => {
+    if (!playerHidden) {
+      endGame.call(scene);
+    }
+  }, null, scene);
 }
 
 function handleBushOverlap(player, bush) {
