@@ -107,7 +107,7 @@ function update() {
   }
 
   // Nivel 2 a Nivel 3
-  if (score >= 100 && currentLevel === 2) {
+  if (score >= 140 && currentLevel === 2) {
     changeLevel(this, 'desert', [], 3);
   }
 
@@ -347,6 +347,67 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
         });
       }
 
+      if (newLevel === 5) {
+        // Limpiar elementos del nivel 4
+        bushes.forEach(bush => bush.destroy());
+        bushes = [];
+        
+        if (patrolPoint) {
+          patrolPoint.destroy();
+          patrolPoint = null;
+        }
+
+        // Eliminar cualquier guardia existente
+        let guards = scene.children.list.filter(child => child.texture && child.texture.key === 'guard');
+        guards.forEach(guard => guard.destroy());
+        
+        // Reiniciar posición del jugador
+        player.y = scene.scale.height - 50;
+        player.x = scene.scale.width / 2;
+        
+        // Crear mensaje de victoria
+        let winText = scene.add.text(
+          scene.scale.width / 2,
+          scene.scale.height / 2,
+          '¡Ganaste!\nTerminaste el camino',
+          {
+            fontSize: '48px',
+            fill: '#fff',
+            align: 'center',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 20 }
+          }
+        );
+        winText.setOrigin(0.5);
+        winText.setDepth(1000); // Asegurar que el texto esté sobre todo lo demás
+        
+        // Crear arbustos decorativos
+        const bushPositions = [
+          { x: 100, y: scene.scale.height - 80 },
+          { x: 300, y: scene.scale.height - 80 },
+          { x: 500, y: scene.scale.height - 80 },
+          { x: 700, y: scene.scale.height - 80 },
+          { x: 900, y: scene.scale.height - 80 }
+        ];
+
+        bushPositions.forEach(pos => {
+          let bush = scene.physics.add.sprite(pos.x, pos.y, 'bush');
+          bush.setScale(0.8);
+          bush.body.setImmovable(true);
+          bush.body.allowGravity = false;
+          bush.setDepth(1); // Asegurar que los arbustos estén detrás del texto
+        });
+        
+        // Desactivar controles del jugador
+        player.setVelocity(0, 0);
+        player.body.allowGravity = false;
+        
+        // Opcional: recargar el juego después de unos segundos
+        scene.time.delayedCall(5000, () => {
+          location.reload();
+        });
+      }
+
       if (newLevel === 2) {
         if (guard) guard.destroy();
         guard = scene.physics.add.sprite(-50, scene.scale.height - 100, 'guard');
@@ -366,7 +427,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
         duration: 1000,
         onComplete: () => {
           if (newLevel === 4) {
-            alert('¡Has avanzado al nivel 4! Tienes 10 segundos de tiempo seguro.');
+            alert('¡Has avanzado al nivel 4! Tienes 10 segundos de tiempo seguro. Muevete solo cuando la luz este en verde, ocultate en la luz roja o perderas');
           }
         }
       });
@@ -374,21 +435,39 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
   });
 }
 
+function createDecorativeBushes(scene) {
+  const bushPositions = [
+    { x: 100, y: scene.scale.height - 80 },
+    { x: 300, y: scene.scale.height - 80 },
+    { x: 500, y: scene.scale.height - 80 },
+    { x: 700, y: scene.scale.height - 80 },
+    { x: 900, y: scene.scale.height - 80 }
+  ];
+
+  bushPositions.forEach(pos => {
+    let bush = scene.physics.add.sprite(pos.x, pos.y, 'bush');
+    bush.setScale(0.8);
+    bush.body.setImmovable(true);
+    bush.body.allowGravity = false;
+  });
+}
+
+
 
 function createBushes(scene) {
   bushes.forEach(bush => bush.destroy());
   bushes = [];
 
-  // Crear el punto intermitente en la parte superior con color verde inicial
+  // Create the blinking point at the top with initial green color
   patrolPoint = scene.add.circle(scene.scale.width - 100, 550, 30, 0x00ff00);
   
-  // Texto informativo inicial
+  // Informative initial text
   let infoText = scene.add.text(16, 60, 'Tiempo seguro: 10s', {
     fontSize: '24px',
     fill: '#fff'
   });
 
-  // Contador de tiempo seguro
+  // Safe time counter
   let safeTimeRemaining = 10;
   let safeTimer = scene.time.addEvent({
     delay: 1000,
@@ -399,7 +478,7 @@ function createBushes(scene) {
       if (safeTimeRemaining <= 0) {
         infoText.destroy();
         
-        // Iniciar el ciclo normal después del tiempo seguro
+        // Start normal cycle after safe time
         startTrafficLightCycle(scene);
       }
     },
@@ -422,8 +501,8 @@ function createBushes(scene) {
     scene.physics.add.overlap(player, bush, handleBushOverlap, null, scene);
   });
 
-  // Patrulla
-  let patrol = scene.physics.add.sprite(scene.scale.width - 100, scene.scale.height - 90, 'guard');
+  // Patrol 15px lower
+  let patrol = scene.physics.add.sprite(scene.scale.width - 100, scene.scale.height - 75, 'guard');
   patrol.setScale(0.8);
   patrol.body.allowGravity = false;
   patrol.setFlipX(true);
@@ -435,18 +514,54 @@ function createBushes(scene) {
   }, null, scene);
 }
 
+function checkGameOverLevel4(scene) {
+  const playerOverlapsBush = bushes.some(bush => {
+    return Phaser.Geom.Intersects.RectangleToRectangle(
+      player.getBounds(),
+      bush.getBounds()
+    );
+  });
+
+  // Only check game over if initial safe period is over
+  if (patrolPoint.fillColor === 0xff0000 && !playerOverlapsBush) {
+    endGame.call(scene);
+  }
+}
+
 function startTrafficLightCycle(scene) {
-  // Asegurarse de que no haya temporizadores previos
   if (pointTimer) {
     pointTimer.remove();
   }
 
   let isRed = false;
+  let previousColor = 0x00ff00;
+  
   pointTimer = scene.time.addEvent({
-    delay: 5000, // 5 segundos para cada color
+    delay: 5000, 
     callback: () => {
       isRed = !isRed;
       patrolPoint.setFillStyle(isRed ? 0xff0000 : 0x00ff00);
+      
+      if (previousColor === 0xff0000 && !isRed) {
+        const playerInBushes = bushes.some(bush => 
+          Phaser.Geom.Intersects.RectangleToRectangle(
+            new Phaser.Geom.Rectangle(player.x, player.y, player.width, player.height),
+            bush.getBounds()
+          )
+        );
+
+        if (playerInBushes) {
+          score += 20;
+          scoreText.setText('Puntos: ' + score);
+
+          // Verificar si se alcanzó el puntaje para el nivel 5
+          if (score >= 200) {
+            changeLevel(scene, 'noche', [], 5);
+          }
+        }
+      }
+      
+      previousColor = isRed ? 0xff0000 : 0x00ff00;
     },
     loop: true
   });
@@ -472,12 +587,17 @@ function handleBushOverlap(player, bush) {
   if (cursors.shift.isDown) {
     playerHidden = true;
     player.setAlpha(0.5);
+    
+    // Check if player passes red light while hidden
+    if (patrolPoint.fillColor === 0xff0000) {
+      score += 20;
+      scoreText.setText('Puntos: ' + score);
+    }
   } else {
     playerHidden = false;
     player.setAlpha(1);
   }
 }
-
 function createObstacle(scene, x, type) {
   if (currentLevel === 3 || currentLevel === 4) return;
 
@@ -491,7 +611,7 @@ function createObstacle(scene, x, type) {
       break;
     case 'jaguar':
       obstacle.setScale(0.5);
-      obstacle.body.setSize(obstacle.width * 0.42, obstacle.height * 0.42);
+      obstacle.body.setSize(obstacle.width * 0.32, obstacle.height * 0.32);
       obstacle.body.setOffset(obstacle.width * 0.29, obstacle.height * 0.29);
       break;
     case 'snake':
@@ -529,6 +649,7 @@ function getRandomObstacleTypeLevel2() {
 
 
 }
+
 
 function endGame() {
   isGameOver = true;
