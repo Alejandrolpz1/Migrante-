@@ -352,9 +352,14 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
         bushes.forEach(bush => bush.destroy());
         bushes = [];
         
+        // Eliminar el semáforo y su temporizador
         if (patrolPoint) {
           patrolPoint.destroy();
           patrolPoint = null;
+        }
+        if (pointTimer) {
+          pointTimer.remove();
+          pointTimer = null;
         }
 
         // Eliminar cualquier guardia existente
@@ -379,7 +384,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
           }
         );
         winText.setOrigin(0.5);
-        winText.setDepth(1000); // Asegurar que el texto esté sobre todo lo demás
+        winText.setDepth(1000);
         
         // Crear arbustos decorativos
         const bushPositions = [
@@ -395,7 +400,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
           bush.setScale(0.8);
           bush.body.setImmovable(true);
           bush.body.allowGravity = false;
-          bush.setDepth(1); // Asegurar que los arbustos estén detrás del texto
+          bush.setDepth(1);
         });
         
         // Desactivar controles del jugador
@@ -403,7 +408,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
         player.body.allowGravity = false;
         
         // Opcional: recargar el juego después de unos segundos
-        scene.time.delayedCall(5000, () => {
+        scene.time.delayedCall(20000, () => {
           location.reload();
         });
       }
@@ -427,7 +432,7 @@ function changeLevel(scene, newBackground, newObstacles, newLevel) {
         duration: 1000,
         onComplete: () => {
           if (newLevel === 4) {
-            alert('¡Has avanzado al nivel 4! Tienes 10 segundos de tiempo seguro. Muevete solo cuando la luz este en verde, ocultate en la luz roja o perderas');
+            alert('¡Has avanzado al nivel 4! Tienes 10 segundos de tiempo seguro. Muevete en la luz verde, ocultate cuando la luz este roja o perderas ');
           }
         }
       });
