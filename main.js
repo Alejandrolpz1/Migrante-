@@ -463,16 +463,14 @@ function createBushes(scene) {
   bushes.forEach(bush => bush.destroy());
   bushes = [];
 
-  // Create the blinking point at the top with initial green color
   patrolPoint = scene.add.circle(scene.scale.width - 100, 550, 30, 0x00ff00);
   
-  // Informative initial text
   let infoText = scene.add.text(16, 60, 'Tiempo seguro: 10s', {
     fontSize: '24px',
     fill: '#fff'
   });
 
-  // Safe time counter
+
   let safeTimeRemaining = 10;
   let safeTimer = scene.time.addEvent({
     delay: 1000,
@@ -483,7 +481,6 @@ function createBushes(scene) {
       if (safeTimeRemaining <= 0) {
         infoText.destroy();
         
-        // Start normal cycle after safe time
         startTrafficLightCycle(scene);
       }
     },
@@ -506,7 +503,6 @@ function createBushes(scene) {
     scene.physics.add.overlap(player, bush, handleBushOverlap, null, scene);
   });
 
-  // Patrol 15px lower
   let patrol = scene.physics.add.sprite(scene.scale.width - 100, scene.scale.height - 75, 'guard');
   patrol.setScale(0.8);
   patrol.body.allowGravity = false;
@@ -527,7 +523,7 @@ function checkGameOverLevel4(scene) {
     );
   });
 
-  // Only check game over if initial safe period is over
+
   if (patrolPoint.fillColor === 0xff0000 && !playerOverlapsBush) {
     endGame.call(scene);
   }
