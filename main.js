@@ -2,6 +2,12 @@ const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: '100%',
+    height: '100%'
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -17,6 +23,15 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+window.addEventListener('resize', () => {
+  const game = document.getElementsByTagName('canvas')[0];
+  if (game) {
+    game.style.width = '100%';
+    game.style.height = '100%';
+  }
+});
+
 let player;
 let train; 
 let cursors;
@@ -60,6 +75,38 @@ function preload() {
   this.load.image('bush', 'arbusto.png');
 }
 
+
+function updateSceneScale(scene) {
+  // Ajustar escala de elementos según el nuevo tamaño de pantalla
+  const scaleX = scene.scale.width / 800; // Ancho base de referencia
+  const scaleY = scene.scale.height / 600; // Altura base de referencia
+
+  // Ajustar posiciones y escalas de elementos
+  player.setScale(Math.min(scaleX, scaleY));
+  player.x = scene.scale.width * (120 / 800);
+  player.y = scene.scale.height * (500 / 600);
+
+  // Ajustar obstáculos
+  obstacles.forEach(obstacle => {
+    obstacle.setScale(Math.min(scaleX, scaleY));
+    obstacle.x = scene.scale.width * (obstacle.x / 800);
+    obstacle.y = scene.scale.height * (obstacle.y / 600);
+  });
+
+  // Ajustar fondo
+  if (background) {
+    background.width = scene.scale.width;
+    background.height = scene.scale.height;
+  }
+
+  // Ajustar texto de puntuación
+  if (scoreText) {
+    scoreText.x = scene.scale.width * (16 / 800);
+    scoreText.y = scene.scale.height * (16 / 600);
+    scoreText.setFontSize(Math.min(scaleX, scaleY) * 32);
+  }
+}
+
 function createIntersectionPoints(scene) {
   const intersections = [74, 76, 78];
   const cellWidth = scene.scale.width / 10;
@@ -81,19 +128,62 @@ function createIntersectionPoints(scene) {
 }
 
 function create() {
+  // Establecer fondo adaptativo
   background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background');
   background.setOrigin(0, 0);
+  background.displayWidth = this.scale.width;
+  background.displayHeight = this.scale.height;
 
-  player = this.physics.add.sprite(120, this.scale.height - 100, 'player');
+  // Crear jugador con posición relativa y escala reducida
+  player = this.physics.add.sprite(
+    this.scale.width * (120 / 800), 
+    this.scale.height * (500 / 600), 
+    'player'
+  );
   player.setCollideWorldBounds(true);
   player.setBounce(0.2);
+  player.setScale(this.scale.width / 1600); // Reducir a la mitad
 
+  // Crear obstáculos con posiciones relativas
   createObstacle(this, this.scale.width / 2, 'rock');
-  createObstacle(this, this.scale.width / 2 + obstacleDistance, 'jaguar');
-  createObstacle(this, this.scale.width / 2 + obstacleDistance * 2, 'snake');
+  createObstacle(this, this.scale.width / 2 + obstacleDistance * (this.scale.width / 800), 'jaguar');
+  createObstacle(this, this.scale.width / 2 + obstacleDistance * 2 * (this.scale.width / 800), 'snake');
 
-  scoreText = this.add.text(16, 16, 'Puntos: 0', { fontSize: '32px', fill: '#fff' });
+  // Texto de puntuación adaptativo
+  scoreText = this.add.text(
+    this.scale.width * (16 / 800), 
+    this.scale.height * (16 / 600), 
+    'Puntos: 0', 
+    { 
+      fontSize: `${this.scale.width / 800 * 32}px`, 
+      fill: '#fff' 
+    }
+  );
+
+  // Controles de teclado
   cursors = this.input.keyboard.createCursorKeys();
+
+  // Evento de redimensionamiento
+  this.scale.on('resize', (gameSize) => {
+    // Actualizar tamaños y posiciones
+    background.displayWidth = gameSize.width;
+    background.displayHeight = gameSize.height;
+
+    player.x = gameSize.width * (120 / 800);
+    player.y = gameSize.height * (500 / 600);
+    player.setScale(gameSize.width / 1600); // Mantener la escala reducida
+
+    scoreText.x = gameSize.width * (16 / 800);
+    scoreText.y = gameSize.height * (16 / 600);
+    scoreText.setFontSize(gameSize.width / 800 * 32);
+
+    // Reposicionar obstáculos
+    obstacles.forEach((obstacle, index) => {
+      obstacle.x = gameSize.width / 2 + obstacleDistance * (index + 1) * (gameSize.width / 800);
+      obstacle.y = gameSize.height * (500 / 600);
+      obstacle.setScale(gameSize.width / 800);
+    });
+  });
 }
 
 function update() {
